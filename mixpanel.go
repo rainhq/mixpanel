@@ -38,6 +38,8 @@ type Mixpanel interface {
 	// Create a mixpanel event
 	Track(distinctId, eventName string, e *Event) error
 
+	Import(distinctId, eventName string, e *Event) error
+
 	// Set properties for a mixpanel user.
 	Update(distinctId string, u *Update) error
 
@@ -122,6 +124,33 @@ func (m *mixpanel) Track(distinctId, eventName string, e *Event) error {
 	autoGeolocate := e.IP == ""
 
 	return m.send("track", params, autoGeolocate)
+}
+
+// Import create a events to current distinct id
+func (m *mixpanel) Import(distinctId, eventName string, e *Event) error {
+	props := map[string]interface{}{
+		"token":       m.Token,
+		"distinct_id": distinctId,
+	}
+	if e.IP != "" {
+		props["ip"] = e.IP
+	}
+	if e.Timestamp != nil {
+		props["time"] = e.Timestamp.Unix()
+	}
+
+	for key, value := range e.Properties {
+		props[key] = value
+	}
+
+	params := map[string]interface{}{
+		"event":      eventName,
+		"properties": props,
+	}
+
+	autoGeolocate := e.IP == ""
+
+	return m.send("import", params, autoGeolocate)
 }
 
 // Updates a user in mixpanel. See
