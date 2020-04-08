@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 )
@@ -12,25 +13,14 @@ import (
 var IgnoreTime *time.Time = &time.Time{}
 
 type MixpanelError struct {
-	URL string
-	Err error
-}
-
-func (err *MixpanelError) Cause() error {
-	return err.Err
+	URL        string `json:"-"`
+	Message    string `json:"error"`
+	HttpStatus int    `json:"-"`
+	Code       int    `json:"status"`
 }
 
 func (err *MixpanelError) Error() string {
-	return "mixpanel: " + err.Err.Error()
-}
-
-type ErrTrackFailed struct {
-	Body string
-	Resp *http.Response
-}
-
-func (err *ErrTrackFailed) Error() string {
-	return fmt.Sprintf("Mixpanel did not return 1 when tracking: %s", err.Body)
+	return fmt.Sprintf("MixpanelClient status=%v code=%v message=%v", err.HttpStatus, err.Code, err.Message)
 }
 
 // The Mixapanel struct store the mixpanel endpoint and the project token
@@ -46,9 +36,11 @@ type Mixpanel interface {
 
 // The Mixapanel struct store the mixpanel endpoint and the project token
 type mixpanel struct {
-	Client *http.Client
-	Token  string
-	ApiURL string
+	Client    *http.Client
+	Token     string
+	ApiKey    string
+	ApiSecret string
+	ApiURL    string
 }
 
 // A mixpanel event
@@ -114,6 +106,7 @@ func (m *mixpanel) Track(distinctId, eventName string, e *Event) error {
 		props["time"] = e.Timestamp.Unix()
 		// If the event took place more than 5 days ago, use the /import endpoint
 		if e.Timestamp.Before(time.Now().Add(time.Hour * 24 * -5)) {
+			log.Println("Mixpanel - timestamp is older than 5 days, using import eventType", eventName)
 			eventType = "import"
 		}
 	}
@@ -167,17 +160,24 @@ func (m *mixpanel) send(eventType string, params interface{}, autoGeolocate bool
 		return err
 	}
 
-	url := m.ApiURL + "/" + eventType + "?data=" + m.to64(data)
+	reqUrl := m.ApiURL + "/" + eventType + "?data=" + m.to64(data)
 
 	if autoGeolocate {
-		url += "&ip=1"
+		reqUrl += "&ip=1"
 	}
+
+	// Add verbose debug
+	reqUrl += "&verbose=1"
 
 	wrapErr := func(err error) error {
-		return &MixpanelError{URL: url, Err: err}
+		return &MixpanelError{URL: reqUrl, Message: err.Error()}
 	}
 
-	resp, err := m.Client.Get(url)
+	req, err := http.NewRequest(http.MethodPost, reqUrl, nil)
+
+	req.SetBasicAuth("YOUR_API_SECRET", m.ApiSecret)
+
+	resp, err := m.Client.Do(req)
 
 	if err != nil {
 		return wrapErr(err)
@@ -191,8 +191,18 @@ func (m *mixpanel) send(eventType string, params interface{}, autoGeolocate bool
 		return wrapErr(bodyErr)
 	}
 
-	if strBody := string(body); strBody != "1" && strBody != "1\n" {
-		return wrapErr(&ErrTrackFailed{Body: strBody, Resp: resp})
+	serverErr := &MixpanelError{
+		URL:        reqUrl,
+		HttpStatus: resp.StatusCode,
+	}
+	if len(body) > 0 {
+		err := json.Unmarshal(body, serverErr)
+		if err != nil {
+			serverErr.Message = err.Error()
+		}
+	}
+	if serverErr.Code != 1 {
+		return serverErr
 	}
 
 	return nil
@@ -200,20 +210,22 @@ func (m *mixpanel) send(eventType string, params interface{}, autoGeolocate bool
 
 // New returns the client instance. If apiURL is blank, the default will be used
 // ("https://api.mixpanel.com").
-func New(token, apiURL string) Mixpanel {
-	return NewFromClient(http.DefaultClient, token, apiURL)
+func New(token, key, secret, apiURL string) Mixpanel {
+	return NewFromClient(http.DefaultClient, token, key, secret, apiURL)
 }
 
 // Creates a client instance using the specified client instance. This is useful
 // when using a proxy.
-func NewFromClient(c *http.Client, token, apiURL string) Mixpanel {
+func NewFromClient(c *http.Client, token, key, secret, apiURL string) Mixpanel {
 	if apiURL == "" {
 		apiURL = "https://api.mixpanel.com"
 	}
 
 	return &mixpanel{
-		Client: c,
-		Token:  token,
-		ApiURL: apiURL,
+		Client:    c,
+		Token:     token,
+		ApiKey:    key,
+		ApiSecret: secret,
+		ApiURL:    apiURL,
 	}
 }

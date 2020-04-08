@@ -3,11 +3,11 @@ package mixpanel
 import "time"
 
 func ExampleNew() {
-	New("mytoken", "")
+	New("mytoken", "", "", "")
 }
 
 func ExampleMixpanel() {
-	client := New("mytoken", "")
+	client := New("mytoken", "", "", "")
 
 	client.Track("1", "Sign Up", &Event{
 		Properties: map[string]interface{}{
@@ -17,7 +17,7 @@ func ExampleMixpanel() {
 }
 
 func ExamplePeople() {
-	client := New("mytoken", "")
+	client := New("mytoken", "", "", "")
 
 	client.Update("1", &Update{
 		Operation: "$set",
