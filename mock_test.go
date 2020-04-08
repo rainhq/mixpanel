@@ -21,13 +21,6 @@ func ExampleMock() {
 		},
 	})
 
-	client.Import("1", "Sign Up", &Event{
-		IP: "1.2.3.4",
-		Properties: map[string]interface{}{
-			"from": "email",
-		},
-	})
-
 	client.Track("1", "Sign In", &Event{
 		IP: "1.2.3.4",
 		Properties: map[string]interface{}{
@@ -44,10 +37,6 @@ func ExampleMock() {
 	//   properties:
 	//     custom_field: cool!
 	//   events:
-	//     Sign Up:
-	//       IP: 1.2.3.4
-	//       Timestamp:
-	//       from: email
 	//     Sign In:
 	//       IP: 1.2.3.4
 	//       Timestamp:

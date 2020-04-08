@@ -14,12 +14,6 @@ func ExampleMixpanel() {
 			"from": "email",
 		},
 	})
-
-	client.Import("1", "Sign Up", &Event{
-		Properties: map[string]interface{}{
-			"from": "email",
-		},
-	})
 }
 
 func ExamplePeople() {
