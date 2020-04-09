@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 )
@@ -106,7 +105,6 @@ func (m *mixpanel) Track(distinctId, eventName string, e *Event) error {
 		props["time"] = e.Timestamp.Unix()
 		// If the event took place more than 5 days ago, use the /import endpoint
 		if e.Timestamp.Before(time.Now().Add(time.Hour * 24 * -5)) {
-			log.Println("Mixpanel - timestamp is older than 5 days, using import eventType", eventName)
 			eventType = "import"
 		}
 	}
