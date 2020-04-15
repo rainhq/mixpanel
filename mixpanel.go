@@ -173,7 +173,7 @@ func (m *mixpanel) send(eventType string, params interface{}, autoGeolocate bool
 
 	req, err := http.NewRequest(http.MethodPost, reqUrl, nil)
 
-	req.SetBasicAuth("YOUR_API_SECRET", m.ApiSecret)
+	req.SetBasicAuth(m.ApiSecret, "")
 
 	resp, err := m.Client.Do(req)
 
