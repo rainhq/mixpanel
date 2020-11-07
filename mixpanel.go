@@ -31,6 +31,8 @@ type Mixpanel interface {
 	Update(distinctId string, u *Update) error
 
 	Alias(distinctId, newId string) error
+
+	Merge(distinctIds []string) error
 }
 
 // The Mixapanel struct store the mixpanel endpoint and the project token
@@ -86,6 +88,21 @@ func (m *mixpanel) Alias(distinctId, newId string) error {
 	}
 
 	return m.send("track", params, false)
+}
+
+// Merge distinct_ids together. Must have merge_ids enabled on Mixpanel organization
+func (m *mixpanel) Merge(distinctIds []string) error {
+	props := map[string]interface{}{
+		"token":         m.Token,
+		"$distinct_ids": distinctIds,
+	}
+
+	params := map[string]interface{}{
+		"event":      "$merge",
+		"properties": props,
+	}
+
+	return m.send("import", params, false)
 }
 
 // Track create a events to current distinct id
